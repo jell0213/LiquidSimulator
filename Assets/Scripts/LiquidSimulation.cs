@@ -22,7 +22,13 @@ namespace LiquidSimulator
         readonly List<int> neighbors = new(64);
         Vector2 target, oldCenter, wallVelocity;
         float targetAngle, oldAngle, angularVelocity, accumulator;
-        public void SetTarget(Vector2 position, float angle) { target = position; targetAngle = angle; }
+        public void SetTarget(Vector2 position, float angle)
+        {
+            // Reject an entire invalid command, retaining the last valid target.
+            if (!PointerProjection.IsFinite(position) || !PointerProjection.IsFinite(angle)) return;
+            target = Vector2.ClampMagnitude(position, 3.5f);
+            targetAngle = Mathf.Clamp(angle, -65f, 65f);
+        }
         public void ResetLiquid()
         {
             Positions = new Vector2[Columns * Rows];

@@ -41,6 +41,19 @@ public sealed class LiquidPhysicsTests
             fluid.SetTarget(new Vector2(sign*2,sign),sign*60); Advance(30); AssertContained();
         }
     }
+    [Test] public void InvalidTargetsDoNotPoisonTheSimulation()
+    {
+        fluid.SetTarget(new Vector2(1, 1), 30); Advance(60);
+        Vector2 center = fluid.ContainerPosition;
+        float angle = fluid.ContainerAngle;
+        fluid.SetTarget(new Vector2(float.NaN, 0), 0);
+        fluid.SetTarget(new Vector2(0, float.PositiveInfinity), 0);
+        fluid.SetTarget(Vector2.zero, float.NaN);
+        Advance(30);
+        Assert.That(fluid.ContainerPosition, Is.EqualTo(center));
+        Assert.That(fluid.ContainerAngle, Is.EqualTo(angle));
+        AssertContained();
+    }
     [Test] public void ResetRecreatesFluidInsideMovedContainer()
     {
         fluid.SetTarget(new Vector2(2,1),40); Advance(60);

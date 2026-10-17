@@ -19,7 +19,7 @@ namespace LiquidSimulator
         {
             view = Camera.main;
             if (view == null) { var cameraObject = new GameObject("Main Camera", typeof(Camera)); cameraObject.tag = "MainCamera"; view = cameraObject.GetComponent<Camera>(); }
-            view.orthographic = true; view.orthographicSize = 5.8f; view.transform.position = new Vector3(0,0,-10);
+            view.orthographic = true; view.orthographicSize = 5.8f; view.transform.SetPositionAndRotation(new Vector3(0,0,-10), Quaternion.identity);
             view.backgroundColor = new Color(0.025f,0.045f,0.09f); view.clearFlags = CameraClearFlags.SolidColor;
             simulation = new GameObject("Fluid solver • 551 particles").AddComponent<LiquidSimulation>();
             var liquid = new GameObject("Continuous liquid surface").AddComponent<LiquidSurface>(); liquid.Simulation = simulation;
@@ -32,18 +32,29 @@ namespace LiquidSimulator
         }
         void Update()
         {
-            Vector2 mouse = view.ScreenToWorldPoint(Input.mousePosition);
-            if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject() &&
+            // Set the camera up before projection, and never divide by a zero/invalid aspect ratio.
+            if (view == null) { dragging = false; return; }
+            float aspect = view.aspect;
+            if (PointerProjection.IsFinite(aspect) && aspect > 0)
+            {
+                float size = Mathf.Max(5.8f, 5.4f / aspect);
+                if (PointerProjection.IsFinite(size)) view.orthographicSize = size;
+            }
+            Vector2 mouse = default;
+            bool validPointer = Application.isFocused && Input.mousePresent &&
+                PointerProjection.TryGetWorldPoint(view, Input.mousePosition, out mouse);
+            if (!validPointer || !Input.GetMouseButton(0)) dragging = false;
+            if (validPointer && Input.GetMouseButtonDown(0) &&
+                (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()) &&
                 Mathf.Abs(simulation.ToLocal(mouse).x) < 2.8f && Mathf.Abs(simulation.ToLocal(mouse).y) < 2.8f)
             { dragging = true; dragOffset = simulation.ContainerPosition - mouse; }
             if (Input.GetMouseButtonUp(0) || !Application.isFocused) dragging = false;
             if (dragging) target = Vector2.ClampMagnitude(mouse + dragOffset, 3.5f);
             float tilt = (Input.GetKey(KeyCode.E) ? 1 : 0) - (Input.GetKey(KeyCode.Q) ? 1 : 0);
-            if (dragging) tilt += Input.mouseScrollDelta.y * 8;
+            float scroll = Input.mouseScrollDelta.y;
+            if (dragging && PointerProjection.IsFinite(scroll)) tilt += scroll * 8;
             angle = Mathf.Clamp(angle + tilt * Time.deltaTime * 70, -65, 65);
             simulation.SetTarget(target, angle);
-            // Reserve world space for the Canvas panel on wide screens and for the container on narrow ones.
-            view.orthographicSize = Mathf.Max(5.8f, 5.4f / view.aspect);
         }
         void LateUpdate() => outline.transform.SetPositionAndRotation(simulation.ContainerPosition, Quaternion.Euler(0,0,simulation.ContainerAngle));
         void OnApplicationFocus(bool focus) { if (!focus) dragging = false; }
