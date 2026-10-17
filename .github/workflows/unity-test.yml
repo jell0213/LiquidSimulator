@@ -1,0 +1,44 @@
+
+name: Unity Validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unity-test:
+    name: Unity EditMode Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # 下載 Unity 專案
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # 啟動 Unity Editor 並執行測試
+      - name: Run Unity Tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          testMode: editmode
+
+      # 儲存 Unity 測試結果
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-test-results
+          path: ${{ steps.tests.outputs.artifactsPath }}
+          if-no-files-found: warn
