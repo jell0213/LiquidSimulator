@@ -10,7 +10,12 @@ namespace LiquidSimulator
         public const float Radius = 0.075f;
         const float Support = 0.31f;
         const int Columns = 29, Rows = 19;
-        public float Viscosity { get; set; } = 0.25f;
+        float viscosity = 0.25f;
+        public float Viscosity
+        {
+            get => viscosity;
+            set { if (PointerProjection.IsFinite(value)) viscosity = Mathf.Clamp01(value); }
+        }
         public Vector2[] Positions { get; private set; }
         public Vector2 ContainerPosition { get; private set; }
         public float ContainerAngle { get; private set; }

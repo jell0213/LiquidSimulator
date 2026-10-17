@@ -1,0 +1,5 @@
+{
+  "name": "LiquidSimulator.PlayModeTests",
+  "references": ["LiquidSimulator", "Unity.ugui"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

@@ -77,10 +77,7 @@ public static class CreateLiquidProject
         var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>("Assets/Settings/LiquidURP.asset");
         if (pipeline == null) { pipeline = UniversalRenderPipelineAsset.Create(renderer); AssetDatabase.CreateAsset(pipeline,"Assets/Settings/LiquidURP.asset"); }
         GraphicsSettings.defaultRenderPipeline = pipeline; QualitySettings.renderPipeline = pipeline;
-        // This project intentionally uses the built-in input backend for mouse and uGUI.
-        var settings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
-        var input = settings.FindProperty("activeInputHandler");
-        if (input != null) { input.intValue = 0; settings.ApplyModifiedPropertiesWithoutUndo(); }
+        // Keep the user's active backend: SandboxInput supports Input System, Input Manager and Both.
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         new GameObject("Liquid Lab", typeof(LiquidSandbox));
         EnsureCamera(scene);

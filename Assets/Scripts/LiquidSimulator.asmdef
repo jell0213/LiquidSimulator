@@ -1,4 +1,7 @@
 {
   "name": "LiquidSimulator",
-  "references": ["Unity.ugui"]
+  "references": [
+    "Unity.ugui",
+    "Unity.InputSystem"
+  ]
 }

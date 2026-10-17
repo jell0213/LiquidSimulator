@@ -10,7 +10,9 @@ Unity **6000.6.0f1** · **Universal 2D (URP)** · 滑鼠互動桌面小遊戲。
 4. 按住容器內部或邊框拖曳，左右來回晃動可產生波浪。按 **Q / E** 傾斜；拖曳時也能用滾輪傾斜，角度限制 ±65°。
 5. Canvas 的 **Viscosity** 滑桿可從 Water 調到 Syrup；**Pause / Play** 暫停，**Reset** 重新填充並讓容器回到中央。
 
-專案使用內建 Input Manager；首次設定會選擇此輸入後端。若手動變更為僅使用新版 Input System，請在 Player Settings 將 Active Input Handling 改為 Input Manager (Old) 或 Both，並依 Unity 提示重新啟動。
+專案同時支援新版 **Input System** 與舊版 **Input Manager**。容器與 Canvas 使用相同後端：若啟用 Input System（含 Both）便優先使用新版，否則使用舊版。程式會為 EventSystem 補上對應的 UI Input Module，並停用同一個 EventSystem 上不相容的模組。首次安裝 Input System 若 Unity 提示是否啟用並重新啟動，請選 Yes；也可在 **Edit → Project Settings → Player → Other Settings → Active Input Handling** 選 **Input System Package (New)** 或 **Both** 並重新啟動。新版不需要手動建立 Input Actions，UI 使用預設 Actions。
+
+操作請在 **Game** 視窗的 Play 模式進行。先點一下 Game 視窗取得焦點；用左鍵按住容器中央並左右拖動。黏稠度滑桿整條 36px 高的區域皆可點擊／拖曳，數值與 Water／Oil／Syrup 標籤會立即更新。暫停時可以調整黏度，但必須繼續播放並搖晃才能比較物理差異。
 
 ## 匯入後看到 3D Scene 視窗？
 
@@ -39,7 +41,7 @@ Scene 視窗的 2D/3D 按鈕只控制編輯器檢視，並不決定使用哪個�
 
 ## 驗證
 
-在 Unity 使用 **Window → General → Test Runner → EditMode → Run All**。測試涵蓋最低／最高黏度靜置、反覆晃動與傾斜後的粒子邊界、移動容器中的重設。測試不取代 Play Mode 畫面及手感驗收。
+在 Unity 使用 **Window → General → Test Runner → EditMode → Run All**；再切到 **PlayMode → Run All** 驗證容器拖曳、滑桿整列點擊、黏度綁定及 UI 操作不會同時拖動容器。測試涵蓋最低／最高黏度靜置、反覆晃動與傾斜後的粒子邊界、移動容器中的重設。測試不取代 Play Mode 畫面及手感驗收。
 
 手動驗收：靜置後觀察液體沉到底部；拖動容器急停觀察慣性波浪；傾斜後液面應逐步朝世界水平恢復；比較黏度 0 與 1 的波浪衰減；確認滑桿不會同時拖動容器、暫停凍結、重設補回液體。測試不同 Game View 寬高比。
 

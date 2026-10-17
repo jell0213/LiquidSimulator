@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -15,6 +16,9 @@ namespace LiquidSimulator
         bool dragging;
         Text viscosityLabel;
         Font font;
+        readonly List<RaycastResult> uiHits = new();
+        public LiquidSimulation Simulation => simulation;
+        public Slider ViscositySlider { get; private set; }
         void Awake()
         {
             view = Camera.main;
@@ -40,21 +44,35 @@ namespace LiquidSimulator
                 float size = Mathf.Max(5.8f, 5.4f / aspect);
                 if (PointerProjection.IsFinite(size)) view.orthographicSize = size;
             }
-            Vector2 mouse = default;
-            bool validPointer = Application.isFocused && Input.mousePresent &&
-                PointerProjection.TryGetWorldPoint(view, Input.mousePosition, out mouse);
-            if (!validPointer || !Input.GetMouseButton(0)) dragging = false;
-            if (validPointer && Input.GetMouseButtonDown(0) &&
-                (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()) &&
-                Mathf.Abs(simulation.ToLocal(mouse).x) < 2.8f && Mathf.Abs(simulation.ToLocal(mouse).y) < 2.8f)
-            { dragging = true; dragOffset = simulation.ContainerPosition - mouse; }
-            if (Input.GetMouseButtonUp(0) || !Application.isFocused) dragging = false;
-            if (dragging) target = Vector2.ClampMagnitude(mouse + dragOffset, 3.5f);
-            float tilt = (Input.GetKey(KeyCode.E) ? 1 : 0) - (Input.GetKey(KeyCode.Q) ? 1 : 0);
-            float scroll = Input.mouseScrollDelta.y;
+            SandboxInput.Frame input = SandboxInput.Read();
+            HandlePointer(input.Position, input.Pressed, input.Held, input.HasPointer && Application.isFocused);
+            float tilt = input.Tilt;
+            float scroll = input.Scroll;
             if (dragging && PointerProjection.IsFinite(scroll)) tilt += scroll * 8;
             angle = Mathf.Clamp(angle + tilt * Time.deltaTime * 70, -65, 65);
             simulation.SetTarget(target, angle);
+        }
+        public void HandlePointer(Vector2 screen, bool pressed, bool held, bool available)
+        {
+            Vector2 mouse = default;
+            bool valid = available && PointerProjection.TryGetWorldPoint(view, screen, out mouse);
+            if (!valid || !held) { dragging = false; return; }
+            if (pressed && !PointerOverUI(screen))
+            {
+                Vector2 local = simulation.ToLocal(mouse);
+                if (Mathf.Abs(local.x) < 2.8f && Mathf.Abs(local.y) < 2.8f)
+                { dragging = true; dragOffset = simulation.ContainerPosition - mouse; }
+            }
+            if (dragging) target = Vector2.ClampMagnitude(mouse + dragOffset, 3.5f);
+        }
+        bool PointerOverUI(Vector2 screen)
+        {
+            var events = EventSystem.current;
+            if (events == null) return false;
+            // Query this pointer now instead of relying on last frame's cached pointer-over state.
+            var pointer = new PointerEventData(events) { position = screen };
+            uiHits.Clear(); events.RaycastAll(pointer, uiHits);
+            return uiHits.Count > 0;
         }
         void LateUpdate() => outline.transform.SetPositionAndRotation(simulation.ContainerPosition, Quaternion.Euler(0,0,simulation.ContainerAngle));
         void OnApplicationFocus(bool focus) { if (!focus) dragging = false; }
@@ -64,23 +82,43 @@ namespace LiquidSimulator
             var canvasObject = new GameObject("Settings Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasObject.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = canvasObject.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; scaler.referenceResolution = new Vector2(1280,800); scaler.matchWidthOrHeight = 0.5f;
-            if (FindFirstObjectByType<EventSystem>() == null) new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            var events = EventSystem.current;
+            if (events == null) events = FindFirstObjectByType<EventSystem>();
+            if (events == null) events = new GameObject("EventSystem", typeof(EventSystem)).GetComponent<EventSystem>();
+            SandboxInput.ConfigureUI(events);
             var panel = UIObject("Settings", canvasObject.transform, new Vector2(20,-20), new Vector2(310,330));
             panel.AddComponent<Image>().color = new Color(0.055f,0.085f,0.15f,0.95f);
             Label(panel.transform,"LIQUID LAB",new Vector2(20,-18),new Vector2(275,38),28);
-            Label(panel.transform,"Drag the box to stir\nQ / E: tilt   •   drag + wheel: tilt",new Vector2(20,-64),new Vector2(275,55),16);
+            Label(panel.transform,$"Left-drag box to stir • Q / E: tilt\nDrag + wheel: tilt\nInput: {SandboxInput.BackendName}",new Vector2(20,-64),new Vector2(275,62),15);
             viscosityLabel = Label(panel.transform,"",new Vector2(20,-132),new Vector2(275,30),19);
-            var sliderObject = UIObject("Viscosity",panel.transform,new Vector2(24,-178),new Vector2(260,24));
-            var slider = sliderObject.AddComponent<Slider>(); slider.minValue = 0; slider.maxValue = 1;
-            var track = UIObject("Track",sliderObject.transform,new Vector2(0,-9),new Vector2(260,6)); track.AddComponent<Image>().color = new Color(0.18f,0.3f,0.4f);
-            var handleArea = UIObject("Handle Area",sliderObject.transform,Vector2.zero,new Vector2(260,24));
-            var handle = UIObject("Handle",handleArea.transform,Vector2.zero,new Vector2(20,24)); var handleImage = handle.AddComponent<Image>(); handleImage.color = new Color(0.25f,0.85f,1);
-            slider.handleRect = handle.GetComponent<RectTransform>(); slider.targetGraphic = handleImage; slider.direction = Slider.Direction.LeftToRight;
-            slider.onValueChanged.AddListener(v => { simulation.Viscosity = v; viscosityLabel.text = $"Viscosity  {v:0.00}  ·  {(v < 0.35f ? "Water" : v < 0.7f ? "Oil" : "Syrup")}"; });
-            slider.value = 0.25f;
+            var sliderObject = UIObject("Viscosity",panel.transform,new Vector2(24,-172),new Vector2(260,36));
+            // The whole row is a hit target, not only a six-pixel track or the handle.
+            var hitArea = sliderObject.AddComponent<Image>(); hitArea.color = Color.clear;
+            var slider = sliderObject.AddComponent<Slider>(); ViscositySlider = slider;
+            slider.minValue = 0; slider.maxValue = 1; slider.targetGraphic = hitArea;
+            var track = UIObject("Track",sliderObject.transform,new Vector2(10,-15),new Vector2(240,6));
+            var trackImage = track.AddComponent<Image>(); trackImage.color = new Color(0.18f,0.3f,0.4f); trackImage.raycastTarget = false;
+            var handleArea = UIObject("Handle Area",sliderObject.transform,Vector2.zero,Vector2.zero);
+            var area = handleArea.GetComponent<RectTransform>();
+            area.anchorMin = Vector2.zero; area.anchorMax = Vector2.one; area.offsetMin = new Vector2(10,0); area.offsetMax = new Vector2(-10,0);
+            var handle = UIObject("Handle",handleArea.transform,Vector2.zero,new Vector2(20,24));
+            var handleRect = handle.GetComponent<RectTransform>(); handleRect.pivot = new Vector2(0.5f,0.5f);
+            handleRect.anchorMin = new Vector2(0,0.5f); handleRect.anchorMax = new Vector2(0,0.5f);
+            var handleImage = handle.AddComponent<Image>(); handleImage.color = new Color(0.25f,0.85f,1); handleImage.raycastTarget = false;
+            slider.handleRect = handleRect; slider.direction = Slider.Direction.LeftToRight;
+            // Slider stretches the handle vertically; subtract padding to retain a 24px visual height.
+            handleRect.sizeDelta = new Vector2(20,-12);
+            slider.onValueChanged.AddListener(SetViscosity);
+            slider.SetValueWithoutNotify(simulation.Viscosity);
+            SetViscosity(simulation.Viscosity);
             Label(panel.transform,"Water                      Syrup",new Vector2(24,-208),new Vector2(265,24),15);
             Button(panel.transform,"Reset",new Vector2(20,-260),() => { target = Vector2.zero; angle = 0; simulation.ResetLiquid(); });
             Button(panel.transform,"Pause / Play",new Vector2(160,-260),() => simulation.Paused = !simulation.Paused);
+        }
+        void SetViscosity(float value)
+        {
+            simulation.Viscosity = value;
+            viscosityLabel.text = $"Viscosity  {simulation.Viscosity:0.00}  ·  {(value < 0.35f ? "Water" : value < 0.7f ? "Oil" : "Syrup")}";
         }
         GameObject UIObject(string name, Transform parent, Vector2 position, Vector2 size)
         {
