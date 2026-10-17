@@ -6,11 +6,17 @@ Unity **6000.6.0f1** · **Universal 2D (URP)** · 滑鼠互動桌面小遊戲。
 
 1. 在 Unity Hub 安裝 **6000.6.0f1**，使用 Add project from disk 選取本資料夾。
 2. 等待 Package Manager 匯入依賴、C# 編譯完成。首次匯入會建立 `Assets/Scenes/LiquidSandbox.unity`、URP Asset 與 **2D Renderer**，並將場景加入 Build Settings。
-3. 開啟該場景，按 Play。如果場景未自動產生，使用選單 **Liquid Lab → Create or open sandbox**（既有場景請直接從 Project 視窗開啟）。
+3. 開啟該場景，按 Play。如果場景未自動產生，使用選單 **Liquid Lab → Open sandbox in 2D**（既有場景請直接從 Project 視窗開啟）。
 4. 按住容器內部或邊框拖曳，左右來回晃動可產生波浪。按 **Q / E** 傾斜；拖曳時也能用滾輪傾斜，角度限制 ±65°。
 5. Canvas 的 **Viscosity** 滑桿可從 Water 調到 Syrup；**Pause / Play** 暫停，**Reset** 重新填充並讓容器回到中央。
 
 專案使用內建 Input Manager；首次設定會選擇此輸入後端。若手動變更為僅使用新版 Input System，請在 Player Settings 將 Active Input Handling 改為 Input Manager (Old) 或 Both，並依 Unity 提示重新啟動。
+
+## 匯入後看到 3D Scene 視窗？
+
+Scene 視窗的 2D/3D 按鈕只控制編輯器檢視，並不決定使用哪個渲染管線。專案會設定 URP 的 2D Renderer，並在新建場景中建立 Orthographic 相機。
+
+若已有舊版自動產生的場景，更新程式後使用 **Liquid Lab → Open sandbox in 2D**，依提示保留目前未儲存的工作。此功能會開啟遊戲場景、補上／設定正交 Main Camera，並切換 Scene 視窗為 2D。按 **Ctrl/Cmd+S** 儲存場景。容器、液體與 Canvas 在 **Play** 後由程式產生，編輯模式只看到相機屬於正常行為。
 
 ## 液體使用什麼物件？
 
