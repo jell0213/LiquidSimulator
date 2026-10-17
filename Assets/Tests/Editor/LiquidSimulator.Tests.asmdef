@@ -1,0 +1,6 @@
+{
+  "name": "LiquidSimulator.Tests",
+  "references": ["LiquidSimulator"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
